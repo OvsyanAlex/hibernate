@@ -1,0 +1,37 @@
+plugins {
+    id 'java'
+}
+
+group 'org.example'
+version '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+dependencies {
+
+    implementation 'org.hibernate:hibernate-core:5.5.6.Final'
+    runtimeOnly 'org.postgresql:postgresql:42.2.23'
+
+    implementation 'com.vladmihalcea:hibernate-types-52:2.12.1'
+    implementation 'org.slf4j:slf4j-api:1.7.32'
+    implementation("org.slf4j:slf4j-reload4j:2.0.17")
+
+    compileOnly 'org.projectlombok:lombok:1.18.26'
+    annotationProcessor 'org.projectlombok:lombok:1.18.26'
+    testCompileOnly 'org.projectlombok:lombok:1.18.26'
+    testAnnotationProcessor 'org.projectlombok:lombok:1.18.26'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
+}
+
+test {
+    useJUnitPlatform()
+}

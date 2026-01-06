@@ -18,6 +18,7 @@ import java.util.List;
 @NoArgsConstructor
 @Getter
 @Setter
+@Builder
 @Entity
 @Table(name = "users", schema = "hibernate")
 public class User {
@@ -36,6 +37,10 @@ public class User {
     @Type(type = "com.vladmihalcea.hibernate.type.json.JsonBinaryType")
     private String info;
 
+    // Двунаправленная ManyToOne + OneToMany
+    // FetchType указывается на стороне хозяина связи, @ManyToOne по дефолту EAGER
+    // владелец связи, Hibernate подгружает прокси компании и инициализирует её при обращении к user.getCompany()
+    // @JoinColumn(name = "company_id") указывает колонку внешнего ключа в таблице users
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "company_id")
     private Company company;
@@ -52,6 +57,7 @@ public class User {
             name = "user_chat", schema = "hibernate",
             joinColumns = @JoinColumn(name = "user_id"),
             inverseJoinColumns = @JoinColumn(name = "chat_id"))
+    @Builder.Default
     private List<Chat> chats = new ArrayList<>();
 
     public void addChat(Chat chat){

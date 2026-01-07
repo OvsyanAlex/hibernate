@@ -1,4 +1,5 @@
 import entity.*;
+import org.hibernate.Transaction;
 import util.Birthday;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
@@ -16,38 +17,39 @@ public class HibernateRunner {
 
         try (SessionFactory sessionFactory = createSessionFactory()) {
             try (Session session = sessionFactory.openSession()) {
-                session.beginTransaction();
+
+                Transaction transaction = session.beginTransaction(); // открываем транзакцию
 
                 /** простые действия без связынных сущностей*/
 
                 // получение persistent и изменения поля, Hibernate отслеживает dirty checking
-                User user = session.get(User.class,3L);
-                user.setUser_name("new_name");
-                // Загружает proxy, бросает ObjectNotFoundException, если объект отсутствует при доступе к нему
-                // используется для lazy-загрузки
-                session.load(User.class, 3L);
+//                User user = session.get(User.class,3L);
+//                user.setUser_name("new_name");
 
-                // сначала происходит select для проверки наличия указанного объекта по id, удаляет объект из БД, persistent -> transient
-                // Object может быть в любом статусе, главное, чтобы был установлен Id
+                // Возвращает proxy-объект, не делает SELECT сразу, возвращает ленивый прокси
+                // Реальный SELECT выполняется только при доступе к полям объекта, кроме id
+                //  User user = session.load(User.class, 4L);
+
+                // сначала происходит select для проверки наличия указанного объекта по id если объект не persistent
+                // помечает объект как removed - DELETE выполнится при flush() / commit()
+                // Object может быть в persistent и detached, главное, чтобы был установлен Id
                 // получение persistent и удаление компании со всеми пользаками(orphanRemoval=true), Hibernate отслеживает dirty checking
                 // Сначала удаляются users, потом company
-                Company company = session.get(Company.class, 10);
-                session.delete(company);
+//                Company company = session.get(Company.class, 10);
+//                session.delete(company);
 
                 // применяются только к transient → превращают в persistent, в кеш 1 уровня
                 // в зависимости от GenerationType сначала может происходить запрос для присвоения id, потом insert
                 // возвращает идентификатор
-                Serializable save = session.save(user);
+//                Serializable save = session.save(user);
                 // Тоже делает transient → persistent, но не возвращает id, строго следует JPA спецификации
-                session.persist(user);
+//                session.persist(user);
 
 
                 // Поиск сущности с таким же id:
                 // 1. Если сущность уже есть в persistence context — обновляет её поля
                 // 2. Если нет — загружает из БД в persistence context — обновляет её поля
                 // 3. Если в БД тоже нет — создаёт новый экземпляр и сохраняет его
-                // Если entity.id == null → всегда INSERT
-                // Если entity.id != null, но в БД нет такой строки → INSERT
                 // Возвращает persistent-объект (новый или обновлённый)
                 // Переданный объект остаётся detached
                 // session.merge(user);
@@ -58,7 +60,9 @@ public class HibernateRunner {
 
                 // сначала происходит select для проверки наличия указанного объекта по id в сессии, потом update, иначе Exception
                 // нельзя вызывать update() на persistent или transient объекте, работает только с detached
-                // session.update(user);
+                // update() не обновляет объект,
+                //он присоединяет detached-объект к Session
+//                 session.update(user);
 
                 // сначала происходит select для проверки наличия указанного объекта по id, потом update или insert
                 // если transient → вызывает save → persistent
@@ -66,10 +70,15 @@ public class HibernateRunner {
                 // session.saveOrUpdate(user);
 
                 // session.isDirty(); есть ли в сессии объекты, которые были изменены, но ещё не отправлены в базу данных, не flush()
-                // session.flush(); сбрасываем все изменения (добавленные, изменённые, удалённые) в БД, транзакция не коммитится, кеш сохраняется, после flush() новый объект получает id, если он генерируется БД, можно использовать внутри текущей транзакции
+
+                // после flush() новый объект получает id, если используется GenerationType.IDENTITY (id генерируется в базе)
+                // сбрасываем все изменения (добавленные, изменённые, удалённые) в БД, транзакция не коммитится, кеш сохраняется
+                // session.flush();
+
                 // session.evict(user);  удаляем сущность из кеша первого уровня
                 // session.clear();  очищаем кеш первого уровня
                 // session.close(); закрываем сессию -> очищаем кеш первого уровня
+                // transaction.rollback();  откатывает операции на уровне базы
 
                 /** создание Entity */
 //                Company company = Company.builder()
@@ -114,11 +123,14 @@ public class HibernateRunner {
 
 
                 /** односторонняя ManyToOne */
-                // синхронизированное сохранение нового пользователя и компании
+                // синхронизированное сохранение нового пользователя и компании, сначала сохраняем company чтобы получить id
 //                session.save(company);
 //                session.save(user);
 
-                // получение пользователей компании - односторонняя ManyToOne
+                // получение user. За счет fetch = LAZY над полем Company в UserEntity получаем только proxy Company, которая содержит только id компании
+                session.get(User.class,1);
+
+                // получение пользователей компании
 //                Company companyById = session.get(Company.class, 10);
 //                List<User> users = session.createQuery("SELECT u FROM User u WHERE u.company = :company", User.class)
 //                        .setParameter("company", companyById)
@@ -145,9 +157,7 @@ public class HibernateRunner {
                 // session.delete(company1);  удаление company cо всеми user в бд, каскадное удаление лучше задавать через SQL, выше перфоманс
 
 
-                // Для связи с другими сущностями (foreign key), не делает SELECT сразу, возвращает ленивый прокси
-                // бросает исключение, если объекта нет, используется для экономии запросов, особенно в связях
-                //  User user = session.load(User.class, 4L); // прокси
+
                 //  profile.setUser(user);
                 //  session.save(profile);
 

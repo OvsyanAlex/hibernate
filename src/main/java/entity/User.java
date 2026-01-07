@@ -40,7 +40,7 @@ public class User {
     // Двунаправленная ManyToOne + OneToMany
     // FetchType указывается на стороне хозяина связи, @ManyToOne по дефолту EAGER
     // владелец связи, Hibernate подгружает прокси компании и инициализирует её при обращении к user.getCompany()
-    // @JoinColumn(name = "company_id") указывает колонку внешнего ключа в таблице users
+    // @JoinColumn(name = "company_id") указывает колонку внешнего ключа в таблице users - задает имя. Можно не использовать аннотацию
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "company_id")
     private Company company;

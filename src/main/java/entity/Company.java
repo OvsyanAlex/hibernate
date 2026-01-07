@@ -12,6 +12,11 @@ import java.util.List;
 @Getter
 @Setter
 @Entity
+// toString() → печатает users, каждый User.toString() печатает company - разрываем цикл
+// избегаем LazyInitializationException - company.toString() - Hibernate попытается загрузить коллекцию user - которая LAZY
+@ToString(exclude = "users")
+// Если включить коллекцию в equals()/hashCode() -> если коллекция изменяется → hashCode меняется
+@EqualsAndHashCode(exclude = "users")
 @Table(name = "company", schema = "hibernate")
 public class Company {
     @Id
